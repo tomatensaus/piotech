@@ -30,12 +30,11 @@ class OtaHttpArduino : public OtaHttpComponent {
   int http_init() override;
   size_t http_read(uint8_t *buf, size_t len) override;
   void http_end() override;
-  void cleanup() override;
 
  protected:
   HTTPClient client_{};
-  WiFiClient stream;  // needed for 8266
-  WiFiClient *streamPtr = &stream;
+  WiFiClient stream_;  // needed for 8266
+  WiFiClient *stream_ptr_ = &stream_;
 };
 
 }  // namespace ota_http

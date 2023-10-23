@@ -10,7 +10,10 @@ from esphome.const import (
     CONF_METHOD,
     CONF_ESP8266_DISABLE_SSL_SUPPORT,
 )
+from esphome.components import esp32
 from esphome.core import Lambda, CORE
+
+CODEOWNERS = ["@oarcher"]
 
 DEPENDENCIES = ["network"]
 AUTO_LOAD = ["md5"]
@@ -18,6 +21,7 @@ AUTO_LOAD = ["md5"]
 ota_http_ns = cg.esphome_ns.namespace("ota_http")
 OtaHttpComponent = ota_http_ns.class_("OtaHttpComponent", cg.Component)
 OtaHttpArduino = ota_http_ns.class_("OtaHttpArduino", OtaHttpComponent)
+OtaHttpIDF = ota_http_ns.class_("OtaHttpIDF", OtaHttpComponent)
 
 OtaHttpFlashAction = ota_http_ns.class_("OtaHttpFlashAction", automation.Action)
 
@@ -58,8 +62,9 @@ def validate_secure_url(config):
 
 
 def _declare_request_class(value):
-#    if CORE.using_esp_idf:
-#        return cv.declare_id(HttpRequestIDF)(value)
+    if CORE.using_esp_idf:
+        return cv.declare_id(OtaHttpIDF)(value)
+
     if CORE.is_esp8266 or CORE.is_esp32:
         return cv.declare_id(OtaHttpArduino)(value)
     return NotImplementedError
@@ -68,7 +73,6 @@ def _declare_request_class(value):
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
-
             cv.GenerateID(): _declare_request_class,
             cv.Optional(
                 CONF_TIMEOUT, default="5min"
@@ -94,8 +98,14 @@ async def to_code(config):
         cg.add_define("USE_HTTP_REQUEST_ESP8266_HTTPS")
 
     if CORE.is_esp32:
-        cg.add_library("WiFiClientSecure", None)
-        cg.add_library("HTTPClient", None)
+        if CORE.using_esp_idf:
+            esp32.add_idf_sdkconfig_option("CONFIG_ESP_TLS_INSECURE", True)
+            esp32.add_idf_sdkconfig_option(
+                "CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY", True
+            )
+        else:
+            cg.add_library("WiFiClientSecure", None)
+            cg.add_library("HTTPClient", None)
     if CORE.is_esp8266:
         cg.add_library("ESP8266HTTPClient", None)
 
